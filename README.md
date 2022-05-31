@@ -50,7 +50,7 @@ Supported LADP Queries：
 
       
 [*] **ByPass/Fuzz2** PayloadType that can be used: 
-	CommonsBeanutils1
+  CommonsBeanutils1
   CommonBeanutilsNoCC
   CommonsCollections1
   CommonsCollections2
@@ -167,6 +167,7 @@ Supported LADP Queries：
 
 ```
 CommonsBeanutils1
+CommonBeanutilsNoCC
 CommonsCollections1
 CommonsCollections2
 CommonsCollections3
@@ -203,7 +204,6 @@ commons_dbcp2_RCE
 druidjdbc
 tomcatjdbc
 Vaadin1
-CommonBeanutilsNoCC
 ```
 
 
