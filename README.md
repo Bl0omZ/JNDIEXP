@@ -2,7 +2,7 @@
 
 # JNDIExp使用说明
 
-用于 JNDI注入 利用的工具，参考/引用了 **Rogue JNDI** /**JNDIExploit/Y4er/c0ny1项目的代码。
+用于 JNDI注入 利用的工具，参考/引用了 **Rogue JNDI** / **JNDIExploit** / **Y4er** / **c0ny1**项目的代码。
 
 ## **免责说明**
 
