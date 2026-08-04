@@ -26,6 +26,13 @@
             <artifactId>unboundid-ldapsdk</artifactId>
             <version>4.0.9</version>
         </dependency>
+        <!-- #5 jakarta 双轨：jakarta 内存马变体模板编译依赖（仅编译期） -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>5.0.0</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>com.nqzero</groupId>
             <artifactId>permit-reflect</artifactId>

