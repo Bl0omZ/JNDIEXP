@@ -196,6 +196,8 @@ public class RouteParser {
                 String memshellPart = baseDN.substring(baseDN.indexOf("/memshell/") + 10);
                 if (memshellPart.startsWith("FILE:")) {
                     return memshellPart;
+                } else if (memshellPart.startsWith("GEN:")) {
+                    return memshellPart;
                 } else {
                     return "CLASS:" + memshellPart;
                 }
