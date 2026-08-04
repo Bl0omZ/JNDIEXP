@@ -19,3 +19,4 @@ target/
 # 例外：保留工具链资产 jar（构建产物 JNDIInject-*.jar 仍被忽略）
 !data/behinder3.jar
 !yaml-payload-master/yaml-payload.jar
+dependency-reduced-pom.xml
