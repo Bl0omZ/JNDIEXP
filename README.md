@@ -143,6 +143,32 @@ Supported LADP Queries:
 
 (反序列化链存在版本区别serialVersionUID会改变，通过dns请求可知目标可以使用el,groovy,BeanShell1反序列化,CC3.2.1反序列化,CB192等等利用模块)(PS:测试使用mac故未出现系统信息)
 
+#### fuzzbyDNS 判读规则
+
+探针 URL 形如 `http://{marker}.{runId}.{domain}`：
+
+1. `runId` 是每次请求重新生成的 6 位随机串，用于区分不同批次。判读时剥掉自己的 `{domain}`，剩余两段中左边是 marker，右边是 runId。
+2. **`ctrlp` 必须触发**（正控，标记类 java.lang.Object）。未触发说明反序列化链不可达或目标 DNS 出网被拦截，此时所有阴性结果都不可信。
+3. **`ctrln` 必须不触发**（负控，必然不存在的类）。触发说明探测环境有误报（如通配捕获）。
+4. 目标端某个标记类缺失不会中断其余探针，一次请求即可拿到全部结果。
+5. 限制：本模块通过 `javaSerializedData` 投递。目标 JDK 在 8u431 / 11.0.25 / 17.0.13 / 21.0.5 之后默认 `com.sun.jndi.ldap.object.trustSerialData=false`，整个批次失效。
+
+marker 对照表（按组）：
+
+| 组 | marker | 含义 |
+|---|---|---|
+| 对照组 | ctrlp / ctrln | 正控必触发 / 负控必不触发 |
+| JDK 版本 | Jdk7u21 / JRE8u20 / jdk8 / jdk9 / jdk11p | JDK 版本区间判别（jdk8=LocalDate，jdk9=Module，jdk11p=HttpClient） |
+| 操作系统 | linux / windows | 目标系统判别 |
+| CC | cc31or321 / cc322 / cc40 / cc41 | commons-collections 3.x(≤3.2.1) / 3.2.2+ / 4.0 / 4.1+ |
+| CB | cb17 / cb18x / cb19x / cb1 | commons-beanutils 1.7x / 1.8x / 1.9x / BeanComparator 存在 |
+| C3P0 | c3p092x / c3p095x | c3p0 版本段 |
+| bsh | BeanShell2 / bsh20b4 / bsh20b5 / bsh20b6 | BeanShell1 入口 / bsh 版本段 |
+| Groovy | groovy1702311 / groovy24x / groovy244 | groovy 版本段 |
+| BeanFactory | el / jel / mvel / snakeyaml / XStream / becl | javax EL(Tomcat 9-) / jakarta EL(Tomcat 10) / mvel / snakeyaml / XStream / Becl(JDK<8u251) |
+| JDBC/BeanFactory | h2 / druid / tomcatjdbc / tdbcp1 / tdbcp2 / cdbcp1 / cdbcp2 | 对应 Factory/Driver 存在即可走 fuzz 模块同名路由 |
+| 反序列化依赖 | hibernate / json1 / fileupload1 / rome / rhino1 / clojure | 对应链的触发类存在 |
+
 4. 选择其中一个利用链进行利用
 
 ![image-20220810134405232](images/success.png)
@@ -403,6 +429,16 @@ java -jar JNDIInject-1.3-SNAPSHOT.jar -d --test-routes "basic/base64/d2hvYW1p,EL
 - 动作类型
 - 风险等级
 - 执行结果
+
+## 集成验证
+
+编译与单元测试：
+
+```shell
+mvn test
+```
+
+包含 LDAP 投递链路集成测试（`LdapServerIntegrationTest`）：本地启动 LDAP/HTTP 服务，校验 basic 路由返回远程 Reference 属性、HTTP 侧能取到工厂类字节码、gadget 路由返回 `javaSerializedData`。测试只读属性与 HTTP 状态码，不在客户端触发 JNDI 解析。
 
 # 总结
 
