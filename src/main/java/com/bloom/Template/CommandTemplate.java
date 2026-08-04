@@ -2,7 +2,7 @@ package com.bloom.Template;
 
 
 import com.bloom.util.Functions;
-import com.bloom.util.Util;
+import com.bloom.util.Functions;
 import com.unboundid.util.Base64;
 import org.apache.wicket.util.file.Files;
 import org.objectweb.asm.*;
@@ -166,7 +166,7 @@ public class CommandTemplate implements Template{
     }
 
     public void generateMemshell(Class clazz) throws Exception {
-        bytes = Base64.decode(Util.getClassCode(clazz));
+        bytes = Base64.decode(Functions.getClassCode(clazz));
     }
 
 }
