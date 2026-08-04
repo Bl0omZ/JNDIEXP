@@ -12,13 +12,6 @@ import java.net.InetSocketAddress;
 public class HttpServerStart {
     public static String cwd = System.getProperty("user.dir");
 
-    public static void start1() throws IOException {
-        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8081), 0);
-        httpServer.createContext("/", new TestHandler());
-        httpServer.start();
-        System.out.println("[+] HTTP Server Start Listening on " + 8081 + "...");
-    }
-
     public static void start() throws IOException {
 
         HttpServer httpServer = HttpServer.create(new InetSocketAddress(config.httpPort), 0);
@@ -151,47 +144,6 @@ public class HttpServerStart {
 
 
 
-    }
-
-//    ---------------------------测试 ---------------------------
-    public static void main(String[] args) throws IOException {
-//        HttpServer httpServer = HttpServer.create(new InetSocketAddress(80), 0);
-//        httpServer.createContext("/", new TestHandler());
-//        httpServer.start();
-//        httpServer.setExecutor(null);
-        config.httpPort=8081;
-        start();
-
-    }
-
-    private static class TestHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String path = exchange.getRequestURI().getPath();
-            System.out.println("[+] New HTTP Request From " + exchange.getRemoteAddress() + "  " + exchange.getRequestURI());
-            String className = path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf("."));
-//            System.out.println("[+] Receive ClassRequest: " + className + ".class");
-            String pa = cwd + File.separator + "data";
-            ///Users/lvzhibo/IdeaProjects/JNDIInject/target/classes/exploit/exec.class
-            File file = new File(pa + File.separator + className + ".class");
-            OutputStream out = exchange.getResponseBody();
-
-            if (file.exists()){
-                byte[] bytes = new byte[(int) file.length()];
-                try (FileInputStream fileInputStream = new FileInputStream(file)) {
-                    fileInputStream.read(bytes);
-                }
-                exchange.getResponseHeaders().set("Content-type","application/octet-stream");
-                exchange.getResponseHeaders().add("Content-Disposition", "attachment;filename="+file.getName());
-                exchange.sendResponseHeaders(200, file.length());
-                out.write(bytes);
-                out.close();
-            }else {
-                System.out.println("[!] Response Code: " + 404);
-                exchange.sendResponseHeaders(404, 0);
-            }
-            exchange.close();
-        }
     }
 
 }

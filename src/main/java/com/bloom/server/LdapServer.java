@@ -120,12 +120,4 @@ public class LdapServer extends InMemoryOperationInterceptor {
     public static VerificationSession getSession() {
         return session;
     }
-
-    public static void main(String[] args) throws Exception {
-        String http_server_ip = "127.0.0.1";
-        int ldap_port = Integer.valueOf("1389");
-        int http_server_port = Integer.valueOf("8080");
-        HttpServerStart httpServerStart=new HttpServerStart();
-        httpServerStart.start1();
-    }
 }
