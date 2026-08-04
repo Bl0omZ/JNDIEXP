@@ -109,6 +109,8 @@ public class config {
 
             UsageList(prefix);
 
+            com.bloom.exploit.chain.ChainCatalog.print();
+
             System.exit(0);
         }
 
