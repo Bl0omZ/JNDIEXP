@@ -24,8 +24,7 @@ public class FindClassByDNS implements ObjectPayload<Object> {
             String[] cmds = command.split("\\|");
 
             if(cmds.length != 2){
-                System.out.println("<url>|<class name>");
-                return null;
+                throw new IllegalArgumentException("FindClassByDNS 参数格式错误，需要 <url>|<class name>");
             }
 
             String url = cmds[0];
