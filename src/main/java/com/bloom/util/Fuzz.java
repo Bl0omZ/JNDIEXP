@@ -28,6 +28,8 @@ public class Fuzz {
     public String velocity="org.apache.velocity.texen.util.FileUtil";
     public String hikaricp="com.zaxxer.hikari.HikariDataSource";
     public String jshell="jdk.jshell.JShell";
+    public String hessian="com.caucho.hessian.client.HessianProxyFactory";
+    public String jackson="com.fasterxml.jackson.databind.ObjectMapper";
     public String XStream="com.thoughtworks.xstream.XStream";
     public String mvel="org.mvel2.sh.ShellSession";
     /*fuzz 反序列化类,接收到http请求，存在利用不成功的问题，版本或者其他依赖不满足条件*/
@@ -66,6 +68,8 @@ public class Fuzz {
             put("velocity","org.apache.velocity.texen.util.FileUtil");
             put("hikaricp","com.zaxxer.hikari.HikariDataSource");
             put("jshell","jdk.jshell.JShell");
+            put("hessian","com.caucho.hessian.client.HessianProxyFactory");
+            put("jackson","com.fasterxml.jackson.databind.ObjectMapper");
             put("XStream","com.thoughtworks.xstream.XStream");
             put("mvel","org.mvel2.sh.ShellSession");
             put("CommonsBeanutils1","org.apache.commons.beanutils.BeanComparator");

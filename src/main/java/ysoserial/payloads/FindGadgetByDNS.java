@@ -108,6 +108,9 @@ public class FindGadgetByDNS implements ObjectPayload<Object> {
             {"memUserDb", Fuzz.Fuzzmap.get("memoryUserDb")},
             {"velocity", Fuzz.Fuzzmap.get("velocity")},
             {"jshell", Fuzz.Fuzzmap.get("jshell")},
+            // P3: Hessian / Jackson
+            {"hessian", Fuzz.Fuzzmap.get("hessian")},
+            {"jackson", Fuzz.Fuzzmap.get("jackson")},
             // JDK 版本组：java.* 标记在生成时由工具机本地解析，
             // 工具机 JDK 没有该类时自动跳过（见 getObject 容错）
             {"jdk8", "java.time.LocalDate"},
