@@ -275,25 +275,114 @@
           </plugin>
 
              <plugin>
-                 <artifactId>maven-assembly-plugin</artifactId>
-                 <configuration>
-                     <appendAssemblyId>false</appendAssemblyId>
-                     <descriptorRefs>
-                         <descriptorRef>jar-with-dependencies</descriptorRef>
-                     </descriptorRefs>
-                     <archive>
-                         <manifest>
-                             <mainClass>com.bloom.Run</mainClass>
-                         </manifest>
-                     </archive>
-                 </configuration>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-shade-plugin</artifactId>
+                 <version>3.5.0</version>
                  <executions>
                      <execution>
-                         <id>make-assembly</id>
                          <phase>package</phase>
-                         <goals>
-                             <goal>assembly</goal>
-                         </goals>
+                         <goals><goal>shade</goal></goals>
+                         <configuration>
+                             <minimizeJar>true</minimizeJar>
+                             <filters>
+                                 <!-- 项目自身代码完整保留 -->
+                                 <filter>
+                                     <artifact>com.bloom:JNDIInject</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <!-- gadget 链依赖：反序列化/反射触发，不可被 minimize 剔除 -->
+                                 <filter>
+                                     <artifact>commons-collections:commons-collections</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.apache.commons:commons-collections4</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>commons-beanutils:commons-beanutils</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.codehaus.groovy:groovy</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.springframework:*</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.hibernate:hibernate-core</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>com.vaadin:*</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.python:jython-standalone</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.clojure:clojure</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.mozilla:rhino</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>xalan:xalan</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>rome:rome</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.apache.myfaces.core:myfaces-impl</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.apache.wicket:wicket-util</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>com.mchange:c3p0</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.beanshell:bsh</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>commons-fileupload:commons-fileupload</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>org.javassist:javassist</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <filter>
+                                     <artifact>hudson:remoting</artifact>
+                                     <includes><include>**</include></includes>
+                                 </filter>
+                                 <!-- 签名文件移除，避免 shade 后校验失败 -->
+                                 <filter>
+                                     <artifact>*:*</artifact>
+                                     <excludes>
+                                         <exclude>META-INF/*.SF</exclude>
+                                         <exclude>META-INF/*.DSA</exclude>
+                                         <exclude>META-INF/*.RSA</exclude>
+                                     </excludes>
+                                 </filter>
+                             </filters>
+                             <transformers>
+                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                     <mainClass>com.bloom.Run</mainClass>
+                                 </transformer>
+                             </transformers>
+                         </configuration>
                      </execution>
                  </executions>
              </plugin>
