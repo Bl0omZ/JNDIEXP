@@ -48,6 +48,11 @@ public class config {
             }
         }
 
+        if (help) {
+            jc.usage();
+            System.exit(0);
+        }
+
 //        if(showformat){
 //            String ip = (config.ip != null) ? config.ip : "[IP]";
 //            String port = (config.ip != null) ? config.ldapPort + "" : "[PORT]";
