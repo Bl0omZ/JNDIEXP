@@ -123,6 +123,12 @@
             <version>2.4</version>
         </dependency>
         <dependency>
+            <!-- json-lib 将 ezmorph 声明为 optional，不传递；JSON1 链生成需要它 -->
+            <groupId>net.sf.ezmorph</groupId>
+            <artifactId>ezmorph</artifactId>
+            <version>1.0.6</version>
+        </dependency>
+        <dependency>
             <groupId>commons-fileupload</groupId>
             <artifactId>commons-fileupload</artifactId>
             <version>1.3</version>
