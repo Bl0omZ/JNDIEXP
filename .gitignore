@@ -20,3 +20,4 @@ target/
 !data/behinder3.jar
 !yaml-payload-master/yaml-payload.jar
 dependency-reduced-pom.xml
+.pi-glla/

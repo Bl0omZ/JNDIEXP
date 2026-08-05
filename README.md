@@ -222,7 +222,7 @@ Java `ObjectInputStream` 使用 Modified UTF-8（允许 overlong），标准 UTF
 ## 验证
 
 ```bash
-# 编译 + 单元测试（79 用例）
+# 编译 + 单元测试（85 用例）
 mvn test
 
 # dry-run 路由验证

