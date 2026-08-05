@@ -5,6 +5,8 @@ import com.unboundid.util.Base64;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -86,11 +88,6 @@ public class Functions {
         return baous.toByteArray();
     }
 
-    public static void main(String[] args) {
-        String a=SpacePass("cat /etc/pass");
-        System.out.println(a);
-    }
-
     public static boolean ipCheck(String text) {
         if (text != null && !text.isEmpty()) {
             String regex = "^(1\\d{2}|2[0-4]\\d|25[0-5]|[1-9]\\d|[1-9])\\."
@@ -106,12 +103,80 @@ public class Functions {
     }
 
 
-//    public static String cheakpayload(String s) {
-//        if(s!=null){
-//            return s;
-//        }else {
-//            System.out.println();
-//        }
-//
-//    }
+    // --- 以下方法从 Util.java 迁入 ---
+
+    public static String getClassCode(Class clazz) throws Exception {
+        byte[] bytes = getClassBytes(clazz);
+        String result = base64Encode(bytes);
+        return result;
+    }
+
+    public static String base64Encode(byte[] bytes) throws Exception {
+        String result;
+        try {
+            Class clazz = Class.forName("java.util.Base64");
+            Method method = clazz.getDeclaredMethod("getEncoder");
+            Object obj = method.invoke(null);
+            method = obj.getClass().getDeclaredMethod("encodeToString", byte[].class);
+            obj = method.invoke(obj, bytes);
+            result = (String) obj;
+        } catch (ClassNotFoundException e) {
+            Class clazz = Class.forName("sun.misc.BASE64Encoder");
+            Method method = clazz.getMethod("encodeBuffer", byte[].class);
+            Object obj = method.invoke(clazz.newInstance(), bytes);
+            result = (String) obj;
+            result = result.replaceAll("\r|\n|\r\n", "");
+        }
+        return result;
+    }
+
+    public static byte[] base64Decode(String str) throws Exception {
+        byte[] bytes;
+        try {
+            Class clazz = Class.forName("java.util.Base64");
+            Method method = clazz.getDeclaredMethod("getDecoder");
+            Object obj = method.invoke(null);
+            method = obj.getClass().getDeclaredMethod("decode", String.class);
+            obj = method.invoke(obj, str);
+            bytes = (byte[]) obj;
+        } catch (ClassNotFoundException e) {
+            Class clazz = Class.forName("sun.misc.BASE64Decoder");
+            Method method = clazz.getMethod("decodeBuffer", String.class);
+            Object obj = method.invoke(clazz.newInstance(), str);
+            bytes = (byte[]) obj;
+        }
+        return bytes;
+    }
+
+    public static byte[] serialize(Object ref) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream objOut = new ObjectOutputStream(out);
+        objOut.writeObject(ref);
+        return out.toByteArray();
+    }
+
+    public static String getCmdFromBase(String base) throws Exception {
+        int firstIndex = base.lastIndexOf("/");
+        String cmd = base.substring(firstIndex + 1);
+        int secondIndex = base.lastIndexOf("/", firstIndex - 1);
+        if (secondIndex < 0) {
+            secondIndex = 0;
+        }
+        if (base.substring(secondIndex + 1, firstIndex).equalsIgnoreCase("base64")) {
+            byte[] bytes = base64Decode(cmd);
+            cmd = new String(bytes);
+        }
+        return cmd;
+    }
+
+    public static String[] getIPAndPortFromBase(String base) throws NumberFormatException {
+        int firstIndex = base.lastIndexOf("/");
+        String port = base.substring(firstIndex + 1);
+        int secondIndex = base.lastIndexOf("/", firstIndex - 1);
+        if (secondIndex < 0) {
+            secondIndex = 0;
+        }
+        String ip = base.substring(secondIndex + 1, firstIndex);
+        return new String[]{ip, Integer.parseInt(port) + ""};
+    }
 }

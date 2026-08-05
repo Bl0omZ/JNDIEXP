@@ -1,5 +1,7 @@
 package com.bloom.session;
 
+import com.bloom.exploit.chain.ChainMeta;
+import com.bloom.exploit.chain.ChainRegistry;
 import com.bloom.parser.ActionType;
 import com.bloom.parser.ParsedRoute;
 import com.bloom.parser.RiskLevel;
@@ -52,6 +54,13 @@ public class DryRunResult {
                     entry.getMethod(),
                     entry.getActionType().getCode(),
                     entry.getActionType().getRiskLevel().getLabel()));
+            // 已注册链路补充能力元数据，供 dry-run 直接看出该链能做什么
+            ChainMeta meta = ChainRegistry.metaOf(entry.getPayloadType());
+            if (meta != null) {
+                System.out.println("      cap=" + meta.getAction()
+                        + " | dep=" + meta.getDependency()
+                        + " | jdk=" + meta.getJdkRange());
+            }
             if (!entry.isValid()) {
                 for (String error : entry.getErrors()) {
                     System.out.println("  ERROR: " + error);

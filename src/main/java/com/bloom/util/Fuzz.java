@@ -18,6 +18,18 @@ public class Fuzz {
     public String druidjdbc="com.alibaba.druid.pool.DruidDataSourceFactory";
     public String tomcatjdbc="org.apache.tomcat.jdbc.pool.DataSourceFactory";
     public String snakeyaml="org.yaml.snakeyaml.Yaml";
+    // P2 新增探测类
+    public String postgresql="org.postgresql.Driver";
+    public String mysql8="com.mysql.cj.jdbc.Driver";
+    public String mysql5="com.mysql.jdbc.Driver";
+    public String fastjson1="com.alibaba.fastjson.JSON";
+    public String fastjson2="com.alibaba.fastjson2.JSON";
+    public String memoryUserDb="org.apache.catalina.users.MemoryUserDatabaseFactory";
+    public String velocity="org.apache.velocity.texen.util.FileUtil";
+    public String hikaricp="com.zaxxer.hikari.HikariDataSource";
+    public String jshell="jdk.jshell.JShell";
+    public String hessian="com.caucho.hessian.client.HessianProxyFactory";
+    public String jackson="com.fasterxml.jackson.databind.ObjectMapper";
     public String XStream="com.thoughtworks.xstream.XStream";
     public String mvel="org.mvel2.sh.ShellSession";
     /*fuzz 反序列化类,接收到http请求，存在利用不成功的问题，版本或者其他依赖不满足条件*/
@@ -46,6 +58,18 @@ public class Fuzz {
             put("druidjdbc","com.alibaba.druid.pool.DruidDataSourceFactory");
             put("tomcatjdbc","org.apache.tomcat.jdbc.pool.DataSourceFactory");
             put("snakeyaml","org.yaml.snakeyaml.Yaml");
+            // P2 新增
+            put("postgresql","org.postgresql.Driver");
+            put("mysql8","com.mysql.cj.jdbc.Driver");
+            put("mysql5","com.mysql.jdbc.Driver");
+            put("fastjson1","com.alibaba.fastjson.JSON");
+            put("fastjson2","com.alibaba.fastjson2.JSON");
+            put("memoryUserDb","org.apache.catalina.users.MemoryUserDatabaseFactory");
+            put("velocity","org.apache.velocity.texen.util.FileUtil");
+            put("hikaricp","com.zaxxer.hikari.HikariDataSource");
+            put("jshell","jdk.jshell.JShell");
+            put("hessian","com.caucho.hessian.client.HessianProxyFactory");
+            put("jackson","com.fasterxml.jackson.databind.ObjectMapper");
             put("XStream","com.thoughtworks.xstream.XStream");
             put("mvel","org.mvel2.sh.ShellSession");
             put("CommonsBeanutils1","org.apache.commons.beanutils.BeanComparator");

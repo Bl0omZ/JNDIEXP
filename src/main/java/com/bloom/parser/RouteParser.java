@@ -68,9 +68,29 @@ public class RouteParser {
                 .rawBaseDN(baseDN);
 
         String command = extractCommand(baseDN, method, builder);
+        if (method.equals("memshell")) {
+            validateBasicMemshellName(command, builder);
+        }
         builder.command(command)
                 .actionType(classifyBasicAction(method, command));
         return builder.build();
+    }
+
+    // basic 路由 memshell 名存在性校验：非法名在 dry-run / 服务端日志直接失败，
+    // 不再投递到目标端才 ClassNotFoundException 静默失败（#9）。
+    // 只覆盖 CLASS: 形态，FILE: 缺失文件由服务端/HTTP 侧明确报错；
+    // gadget 路由的 memshell 名是自由文本（如 EL/memshell/tomcatmemshell1），不在此校验。
+    private void validateBasicMemshellName(String command, ParsedRoute.Builder builder) {
+        if (!command.startsWith("CLASS:")) {
+            return;
+        }
+        String name = command.substring(6);
+        try {
+            // 不触发 <clinit>：memshell 模板静态块依赖目标容器类加载器，本机执行必炸
+            Class.forName("ysoserial.payloads.templates." + name, false, RouteParser.class.getClassLoader());
+        } catch (ClassNotFoundException ex) {
+            builder.addError("无该内存马类型: " + name);
+        }
     }
 
     private ParsedRoute parseFuzz(String baseDN, String[] parts) {
@@ -175,6 +195,8 @@ public class RouteParser {
             case "memshell":
                 String memshellPart = baseDN.substring(baseDN.indexOf("/memshell/") + 10);
                 if (memshellPart.startsWith("FILE:")) {
+                    return memshellPart;
+                } else if (memshellPart.startsWith("GEN:")) {
                     return memshellPart;
                 } else {
                     return "CLASS:" + memshellPart;

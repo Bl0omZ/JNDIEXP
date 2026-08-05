@@ -209,6 +209,32 @@ public class RouteParserTest {
         assertEquals(ActionType.COMMAND, route.getActionType());
     }
 
+    // #9: basic 路由未知 memshell 名必须在解析期失败（dry-run 可发现，不再目标端静默 404）。
+    @Test
+    public void testBasicMemshellUnknownNameInvalid() {
+        ParsedRoute route = parser.parse("basic/memshell/NoSuchShell");
+        assertFalse(route.isValid());
+        assertTrue(route.getValidationErrors().toString().contains("无该内存马类型"));
+    }
+
+    // #5: ELjakarta 路由解析通过（jakarta 双轨）。
+    @Test
+    public void testElJakartaBase64() {
+        ParsedRoute route = parser.parse("ELjakarta/base64/aWQ=");
+        assertTrue(route.isValid());
+        assertEquals(RouteType.GADGET, route.getRouteType());
+        assertEquals("ELjakarta", route.getPayloadType());
+        assertEquals("id", route.getCommand());
+        assertEquals(ActionType.COMMAND, route.getActionType());
+    }
+
+    // #9: gadget 路由的 memshell 名是自由文本，不受 basic 存在性校验影响（回归保护）。
+    @Test
+    public void testGadgetMemshellFreeFormNameStillValid() {
+        ParsedRoute route = parser.parse("EL/memshell/tomcatmemshell1");
+        assertTrue(route.isValid());
+    }
+
     // 合法 reverse shell 仍然正常工作（回归保护）。
     @Test
     public void testReverseShellValidStillWorks() {

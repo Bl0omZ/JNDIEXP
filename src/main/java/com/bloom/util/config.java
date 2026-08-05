@@ -28,6 +28,12 @@ public class config {
     @Parameter(names = {"--test-routes"}, description = "Test routes (comma separated)", order = 7)
     public static String testRoutes = "";
 
+    @Parameter(names = {"--force-serialize"}, description = "Compatibility option: Reference-family chains now default to javaSerializedData serialized delivery, so this option is equivalent to the default behavior", order = 8)
+    public static boolean forceSerialize = false;
+
+    @Parameter(names = {"--ref-attrs"}, description = "Return Reference-family chains via javaReferenceAddress attribute direct-return (for factories that accept a plain Reference, e.g. MemoryUserDatabaseFactory). Default is javaSerializedData serialized delivery (required for BeanFactory-type chains to take effect)", order = 9)
+    public static boolean refAttrs = false;
+
 
 
     @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help")
@@ -46,6 +52,11 @@ public class config {
                 System.out.println("Error: " + e.getMessage() + "\n");
                 help = true;
             }
+        }
+
+        if (help) {
+            jc.usage();
+            System.exit(0);
         }
 
 //        if(showformat){
@@ -103,6 +114,8 @@ public class config {
             System.out.println("    " + prefix + "fuzzbyDNS/[domain]");
 
             UsageList(prefix);
+
+            com.bloom.exploit.chain.ChainCatalog.print();
 
             System.exit(0);
         }

